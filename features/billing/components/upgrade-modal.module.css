@@ -1,0 +1,256 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(10, 14, 39, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.modal {
+  background: #ffffff;
+  border-radius: 24px;
+  width: 90%;
+  max-width: 800px;
+  padding: 40px;
+  position: relative;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.closeButton {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: #f1f3f5;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #495057;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: #e9ecef;
+  color: #212529;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.title {
+  font-family: inherit;
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 12px 0;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #6c757d;
+  margin: 0;
+}
+
+.plansContainer {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+
+.planCard {
+  flex: 1;
+  border: 2px solid #e9ecef;
+  border-radius: 16px;
+  padding: 32px 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease;
+  position: relative;
+  background: #ffffff;
+}
+
+.planCard:hover {
+  border-color: #f5a623;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px -5px rgba(245, 166, 35, 0.15);
+}
+
+.planCardYearly {
+  border-color: #f5a623;
+  background: #fffcf5;
+}
+
+.badge {
+  position: absolute;
+  top: -12px;
+  right: 24px;
+  background: #f5a623;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badgeActive {
+  position: absolute;
+  top: -12px;
+  right: 24px;
+  background: #198754;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prorationBox {
+  margin: -12px 0 20px 0;
+  padding: 10px 12px;
+  background-color: #e6f7ed;
+  border: 1px solid #a3cfbb;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #0f5132;
+  line-height: 1.4;
+}
+
+.planName {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2a3362;
+  margin: 0 0 16px 0;
+}
+
+.priceContainer {
+  margin-bottom: 24px;
+}
+
+.price {
+  font-size: 36px;
+  font-weight: 800;
+  color: #1a1a1a;
+}
+
+.currency {
+  font-size: 20px;
+  vertical-align: super;
+  margin-right: 4px;
+}
+
+.period {
+  font-size: 14px;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.featuresList {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 32px 0;
+  flex-grow: 1;
+}
+
+.featuresList li {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  color: #495057;
+  margin-bottom: 12px;
+}
+
+.featuresList li svg {
+  margin-right: 12px;
+  color: #20c997;
+  flex-shrink: 0;
+}
+
+.subscribeButton {
+  width: 100%;
+  padding: 16px;
+  border-radius: 12px;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subscribeButtonMonthly {
+  background: #f1f3f5;
+  color: #495057;
+}
+
+.subscribeButtonMonthly:hover {
+  background: #e9ecef;
+  color: #212529;
+}
+
+.subscribeButtonYearly {
+  background: #f5a623;
+  color: #ffffff;
+}
+
+.subscribeButtonYearly:hover {
+  background: #e59613;
+}
+
+.subscribeButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  border-top-color: currentColor;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .plansContainer {
+    flex-direction: column;
+  }
+  .modal {
+    padding: 32px 24px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}

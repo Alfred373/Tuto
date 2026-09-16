@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getSessionUser } from '@/features/identity/session';
+import { getUserPlan } from '@/features/billing/entitlements';
 import { LayoutClient } from './layout-client';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -18,8 +19,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ? user.displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
     : 'U';
 
+  const plan = await getUserPlan(user.id);
+
   return (
-    <LayoutClient userInitials={initials}>
+    <LayoutClient userInitials={initials} plan={plan}>
       {children}
     </LayoutClient>
   );

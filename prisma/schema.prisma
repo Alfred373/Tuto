@@ -164,27 +164,27 @@ model Plan {
 }
 
 model Subscription {
-  id                   String             @id @default(cuid())
-  userId               String
-  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planId               String
-  plan                 Plan               @relation(fields: [planId], references: [id])
-  status               SubscriptionStatus @default(ACTIVE)
-  payerUserId          String? // the parent, when different from the student
-  currentPeriodStart   DateTime
-  currentPeriodEnd     DateTime
-  cancelAtPeriodEnd    Boolean            @default(false)
-  cancelledAt          DateTime?
-  paystackCustomerCode String?
-  paystackSubCode      String?
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  id                      String             @id @default(cuid())
+  userId                  String
+  user                    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId                  String
+  plan                    Plan               @relation(fields: [planId], references: [id])
+  status                  SubscriptionStatus @default(ACTIVE)
+  payerUserId             String? // the parent, when different from the student
+  currentPeriodStart      DateTime
+  currentPeriodEnd        DateTime
+  cancelAtPeriodEnd       Boolean            @default(false)
+  cancelledAt             DateTime?
+  flutterwaveCustomerCode String?
+  flutterwaveSubCode      String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
 
   payments Payment[]
 
   @@index([userId, status])
   @@index([currentPeriodEnd, status])
-  @@index([paystackSubCode])
+  @@index([flutterwaveSubCode])
 }
 
 model Payment {
@@ -196,11 +196,41 @@ model Payment {
   currency       String       @default("NGN")
   status         String
   channel        String? // card, bank_transfer, ussd
-  paystackRef    String       @unique
+  flutterwaveRef String       @unique
   paidAt         DateTime?
   createdAt      DateTime     @default(now())
 
   @@index([subscriptionId, createdAt])
+}
+
+enum PaymentLogSource {
+  WEBHOOK
+  REDIRECT_SYNC
+  API_VERIFY
+}
+
+model PaymentLog {
+  id             String           @id @default(cuid())
+  source         PaymentLogSource
+  event          String
+  flutterwaveRef String?
+  txRef          String?
+  userId         String?
+  subscriptionId String?
+  amountKobo     Int?
+  feeKobo        Int?
+  currency       String?          @default("NGN")
+  status         String
+  channel        String?
+  verified       Boolean          @default(false)
+  ipAddress      String?
+  payload        Json
+  createdAt      DateTime         @default(now())
+
+  @@index([flutterwaveRef])
+  @@index([txRef])
+  @@index([userId])
+  @@index([createdAt])
 }
 
 // Usage metering. One row per user per UTC day, incremented atomically.

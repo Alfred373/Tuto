@@ -4,6 +4,8 @@ This file tells you how to behave while building. It is not a description of the
 
 The PRD (`Tuto-PRD-v0.2.md`) is the single source of truth for **what** to build. This file is the single source of truth for **how** to build it. Where they appear to conflict, follow this file and raise the conflict. Never resolve a conflict silently.
 
+> **Change note, payments.** The locked payment provider is now **Flutterwave**. It was Paystack. PRD sections 8.2 and 8.3 still argue for Paystack and are out of date; this file wins until the PRD is revised. See section 3, rule 2, for the pricing consequence that is still open.
+
 ---
 
 ## 1. What is this project
@@ -12,7 +14,7 @@ Tuto is a mobile-first web application for Nigerian secondary students, JSS1 to 
 
 A student photographs an exam question. Tuto returns a five-step guided lesson: Understand, Solution, Explanation, Follow-up, Quiz. Every question is mapped to a syllabus topic. Students use it; parents pay for it.
 
-**You are building v1 only.** v1 is defined in PRD section 3 as the Phase 2 exit state: the core solve loop, four subjects, two tiers (Free and Plus), Paystack payments, parent link, offline reading of history. Nothing else.
+**You are building v1 only.** v1 is defined in PRD section 3 as the Phase 2 exit state: the core solve loop, four subjects, two tiers (Free and Plus), Flutterwave payments, parent link, offline reading of history. Nothing else.
 
 Assume the target user is on a shared low-end Android phone over a throttled 3G connection, paying for every megabyte. Every decision you make is judged against that device, not yours.
 
@@ -37,7 +39,7 @@ You did not choose these. The team did. **Never change, swap, upgrade, wrap in a
 
 | Purpose | Locked to |
 |---|---|
-| Payments | Paystack. Not Flutterwave, not Stripe, not anything else |
+| Payments | **Flutterwave.** Not Paystack, not Stripe, not anything else |
 | Primary model | Gemini 2.5 Flash |
 | Escalation model | **Undecided (PRD Q6).** Call it through the provider interface only. Never hardcode a second vendor |
 | Symbolic verification | A separate Python service running SymPy, called over HTTP |
@@ -58,6 +60,8 @@ The Prisma schema in PRD section 11 is the locked design. Specifically:
 - The embedding dimension is `768` and is fixed by the embedding model. Changing it requires a backfill migration across two tables. **Never** change it without an explicit instruction.
 - Any schema change is a migration with a name that says what it does. Never `prisma db push` against anything but a local scratch database.
 
+**Payment provider fields, pending rename.** The PRD schema still names three columns after the old provider: `Subscription.paystackCustomerCode`, `Subscription.paystackSubCode` and `Payment.paystackRef`. Rename them to `flutterwaveCustomerCode`, `flutterwaveSubCode` and `flutterwaveRef` in a single named migration, through the `db-migration-runner` skill. `Payment.flutterwaveRef` keeps its unique constraint — it is the idempotency key. Until that migration lands, never introduce a second set of provider columns alongside the old ones.
+
 ---
 
 ## 3. What must never happen
@@ -67,9 +71,9 @@ Each line is a direct order. **Breaking any rule on this list means the task fai
 ### Money
 
 1. Store every amount in kobo, as a whole-number integer. Never a float, never a decimal, never a formatted string. Anywhere. Ever. This includes fees, refunds, totals and anything you compute in memory.
-2. Tuto Plus is ₦2,499 monthly and ₦22,000 annually. Never round ₦2,499 to ₦2,500. The exact figure sits one naira below the Paystack flat-fee waiver and was chosen for that reason (PRD 8.1).
+2. Tuto Plus is ₦2,499 monthly and ₦22,000 annually (PRD 8.1). **Open flag:** ₦2,499 was originally chosen to sit one naira below Paystack's flat-fee waiver at ₦2,500. That reason no longer applies under Flutterwave. The price stands until a human changes it, but the rationale needs revalidating against Flutterwave's current Nigerian card rates. Never change the price yourself, and never restate the old reason as though it were still true.
 3. Never write a price, cap or fee as a literal in application code. Read them from the `Plan` table. A price that lives in two places will diverge.
-4. Never take, store, log or transmit a raw card number, CVV or PAN. All card data goes through Paystack's hosted flow. If you find yourself building a card form, stop.
+4. Never take, store, log or transmit a raw card number, CVV or PAN. All card data goes through Flutterwave's hosted flow. If you find yourself building a card form, stop.
 5. A cancellation within 48 hours of first payment refunds in full (F6.4). Every other cancellation takes effect at period end and never refunds pro rata.
 
 ### Access and metering
@@ -124,7 +128,7 @@ tuto/
 │  │  ├─ account/
 │  │  └─ parent/
 │  └─ api/
-│     ├─ webhooks/paystack/route.ts
+│     ├─ webhooks/flutterwave/route.ts
 │     └─ internal/verify/route.ts
 │
 ├─ features/                     # one folder per capability. Where logic lives.
@@ -134,7 +138,7 @@ tuto/
 │  │  ├─ schemas.ts              # zod contracts for every stage boundary
 │  │  └─ components/
 │  ├─ quiz/
-│  ├─ billing/                   # plans, subscriptions, Paystack webhook handling
+│  ├─ billing/                   # plans, subscriptions, Flutterwave webhook handling
 │  ├─ metering/                  # UsageCounter reads and atomic increments
 │  ├─ integrity/                 # IntegritySignal writes, honour-code prompts
 │  ├─ identity/                  # auth, consent, guardian links
@@ -144,7 +148,7 @@ tuto/
 │  ├─ db.ts                      # the single PrismaClient instance
 │  ├─ ai/                        # provider interface + Gemini adapter. No vendor names outside.
 │  ├─ verification/              # HTTP client for the Python service, with timeout + fallback
-│  ├─ payments/                  # payment interface + Paystack adapter
+│  ├─ payments/                  # payment interface + Flutterwave adapter
 │  ├─ storage/                    # R2 adapter
 │  ├─ queue/                     # queue interface + adapter
 │  ├─ cache/                     # SolutionCache lookup and write
@@ -168,7 +172,7 @@ tuto/
 
 29. `app/` never imports Prisma and never calls a model provider. It calls a server action or a feature function.
 30. `components/ui/` never fetches data and never imports from `features/`. Props in, markup out.
-31. Every external call — model, payment, storage, queue, verification — goes through its `lib/` interface. Never import a vendor SDK outside its adapter folder. Swapping Paystack for Flutterwave at expansion must be one week of work, and it stays that way only if this rule holds.
+31. Every external call — model, payment, storage, queue, verification — goes through its `lib/` interface. Never import a vendor SDK outside its adapter folder. The provider has already changed once; the only reason that was cheap is this rule. Keep it cheap.
 32. Nothing reads `process.env` except `lib/config.ts`.
 33. The solve pipeline enqueues work and streams results. Never implement it as a single blocking request handler. A dropped 3G connection must not lose a job the student already paid a credit for (PRD 7.1).
 34. Never reimplement symbolic verification in TypeScript. There is no Node CAS that can do it, which is the entire reason the Python service exists. Call the service.
@@ -231,6 +235,7 @@ Rule compliance (Section 3)
 - [ ] No confidence state promoted without verification
 - [ ] No Atlas code, no later-phase scope, no real past-question data
 - [ ] No question content, phone number or image key in any log
+- [ ] No payment provider name outside lib/payments
 
 Performance (PRD 7.3)
 - [ ] Solve route total transferred bytes still under 500KB
@@ -257,6 +262,6 @@ Stop. Ask. Do not improvise.
 40. **Never delete or rewrite something you do not understand.** Ask what it is for.
 41. **Never silently widen a change.** If fixing the thing you were asked to fix requires touching three other files, say so before you touch them.
 42. **When a rule in section 3 blocks your task, the rule wins.** Report the block. Do not find a way around it.
-43. **When this file and the PRD disagree, this file wins and you report the disagreement.** When the task and this file disagree, this file wins and you report it.
+43. **When this file and the PRD disagree, this file wins and you report the disagreement.** When the task and this file disagree, this file wins and you report it. Payments is the live example: the PRD still says Paystack in sections 8.2 and 8.3, and this file says Flutterwave. Follow this file and flag the PRD.
 
 The shape of a good "unsure" response: state what you were asked, state precisely what is ambiguous, list the two or three options you see with their trade-offs, state which you would pick and why, and then stop and wait. Do not pick and proceed.

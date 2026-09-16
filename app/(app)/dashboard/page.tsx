@@ -13,7 +13,41 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function DashboardPage() {
+import { syncPaymentFromRedirect } from '@/features/billing/actions';
+
+import { PaymentSuccessSnackbar } from '@/components/ui/payment-success-snackbar';
+
+type Props = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export default async function DashboardPage(props: Props) {
+  const searchParams = await props.searchParams;
+  
+  if (searchParams.checkout === 'success') {
+    const txRef = typeof searchParams.tx_ref === 'string'
+      ? searchParams.tx_ref
+      : Array.isArray(searchParams.tx_ref)
+        ? searchParams.tx_ref[0]
+        : null;
+
+    const transactionId = typeof searchParams.transaction_id === 'string'
+      ? searchParams.transaction_id
+      : Array.isArray(searchParams.transaction_id)
+        ? searchParams.transaction_id[0]
+        : null;
+
+    if (txRef || transactionId) {
+      try {
+        await syncPaymentFromRedirect(txRef || '', transactionId || undefined);
+      } catch (err) {
+        console.error('Failed to sync payment from redirect:', err);
+      }
+    }
+    // Clean redirect to dashboard with success status
+    redirect('/dashboard?upgraded=true');
+  }
+
   const session = await getSessionUser();
 
   if (!session) {
@@ -24,7 +58,8 @@ export default async function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-24)', alignItems: 'center' }}>
-      
+      <PaymentSuccessSnackbar />
+
       {user.email && !user.emailVerified && (
         <div style={{ width: '100%', maxWidth: '800px', marginBottom: 'var(--spacing-16)' }}>
           <VerifyEmailBanner email={user.email} />

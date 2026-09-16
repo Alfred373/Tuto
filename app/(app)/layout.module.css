@@ -208,3 +208,101 @@
   padding: var(--spacing-24);
   background-color: var(--color-background);
 }
+
+.topbarPlanButton {
+  margin-right: var(--spacing-16);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font: var(--typography-label-large);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.freePillButton {
+  margin-right: var(--spacing-16);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font: var(--typography-label-large);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  background-color: var(--color-surface-variant);
+  color: var(--color-on-surface);
+  border: 1px solid var(--color-outline-variant);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.freePillButton:hover {
+  background-color: var(--color-surface);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.proPillButton {
+  margin-right: var(--spacing-16);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font: var(--typography-label-large);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #f5a623 0%, #d48004 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 2px 8px rgba(245, 166, 35, 0.3);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.proPillButton:hover {
+  background: linear-gradient(135deg, #ffb339 0%, #e08c0a 100%);
+  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.4);
+  transform: translateY(-1px);
+}
+
+.planDropdownInfo {
+  padding: var(--spacing-12) var(--spacing-16);
+  background-color: var(--color-surface-variant);
+  border-radius: var(--shape-corner-medium) var(--shape-corner-medium) 0 0;
+}
+
+.planDropdownLabel {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-on-surface-variant);
+  font-weight: 600;
+}
+
+.planDropdownTier {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-on-surface);
+  margin-top: 2px;
+}
+
+.planDropdownDate {
+  font-size: 11px;
+  color: var(--color-on-surface-variant);
+  margin-top: 2px;
+}
+
+.dropdownDivider {
+  height: 1px;
+  background-color: var(--color-outline-variant);
+}
+

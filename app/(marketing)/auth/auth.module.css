@@ -334,6 +334,7 @@
   left: var(--spacing-48);
   color: #ffffff;
   z-index: 10;
+  text-align: left;
 }
 
 .heroTitle {

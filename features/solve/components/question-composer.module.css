@@ -236,3 +236,80 @@
   border-radius: 8px;
   text-align: center;
 }
+
+.actionRow {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--spacing-8);
+}
+
+.processBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-8);
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: 9999px;
+  padding: 14px 32px;
+  font: var(--typography-label-large);
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all var(--motion-duration-short-2) ease;
+}
+
+.processBtn:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.processBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.processingCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-36) var(--spacing-24);
+  border-radius: var(--shape-corner-large);
+  background-color: var(--color-surface-variant);
+  border: 1px solid var(--color-outline-variant);
+  gap: var(--spacing-16);
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--color-outline-variant);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.processingTitle {
+  font: var(--typography-title-medium);
+  font-weight: 600;
+  color: var(--color-on-surface);
+  margin: 0;
+}
+
+.processingSubtitle {
+  font: var(--typography-body-medium);
+  color: var(--color-on-surface-variant);
+  margin: 0;
+}
+
+

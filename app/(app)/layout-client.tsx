@@ -4,10 +4,21 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import styles from './layout.module.css';
 import { signoutAction } from '@/app/actions/auth';
+import { UpgradeModal } from '@/features/billing/components/upgrade-modal';
+import type { UserPlanInfo } from '@/features/billing/entitlements';
 
-export function LayoutClient({ children, userInitials }: { children: React.ReactNode, userInitials: string }) {
+export function LayoutClient({ 
+  children, 
+  userInitials,
+  plan
+}: { 
+  children: React.ReactNode; 
+  userInitials: string;
+  plan: UserPlanInfo;
+}) {
   const [collapsed, setCollapsed] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
@@ -26,6 +37,10 @@ export function LayoutClient({ children, userInitials }: { children: React.React
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const formattedPeriodEnd = plan.currentPeriodEnd 
+    ? new Date(plan.currentPeriodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null;
 
   return (
     <div className={styles.layoutContainer}>
@@ -67,6 +82,23 @@ export function LayoutClient({ children, userInitials }: { children: React.React
 
       <div className={styles.mainWrapper}>
         <header className={styles.topbar}>
+          <button 
+            className={plan.isPlus ? styles.proPillButton : styles.freePillButton}
+            onClick={() => setIsUpgradeModalOpen(true)}
+            aria-label={plan.isPlus ? "Manage Pro Plan" : "View Free Plan & Upgrade"}
+          >
+            {plan.isPlus ? (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                <span>Pro</span>
+              </>
+            ) : (
+              <span>Free</span>
+            )}
+          </button>
+
           <div className={styles.avatarContainer} ref={dropdownRef}>
             <div 
               className={styles.avatar} 
@@ -77,9 +109,18 @@ export function LayoutClient({ children, userInitials }: { children: React.React
             </div>
             {dropdownOpen && (
               <div className={styles.dropdown}>
+                <div className={styles.planDropdownInfo}>
+                  <div className={styles.planDropdownLabel}>Current Plan</div>
+                  <div className={styles.planDropdownTier}>{plan.name}</div>
+                  {formattedPeriodEnd && (
+                    <div className={styles.planDropdownDate}>
+                      Renews {formattedPeriodEnd}
+                    </div>
+                  )}
+                </div>
+                <div className={styles.dropdownDivider} />
                 <Link href="/account" className={styles.dropdownItem} onClick={() => setDropdownOpen(false)}>My Profile</Link>
-                <Link href="/account" className={styles.dropdownItem} onClick={() => setDropdownOpen(false)}>Billing</Link>
-                <Link href="/account" className={styles.dropdownItem} onClick={() => setDropdownOpen(false)}>Settings</Link>
+                <Link href="/account" className={styles.dropdownItem} onClick={() => setDropdownOpen(false)}>Billing & Subscription</Link>
                 <button onClick={handleSignOut} className={styles.dropdownItem}>Sign Out</button>
               </div>
             )}
@@ -89,6 +130,12 @@ export function LayoutClient({ children, userInitials }: { children: React.React
         <main className={styles.contentArea}>
           {children}
         </main>
+        
+        <UpgradeModal 
+          isOpen={isUpgradeModalOpen} 
+          onClose={() => setIsUpgradeModalOpen(false)} 
+          plan={plan}
+        />
       </div>
     </div>
   );

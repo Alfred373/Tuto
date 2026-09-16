@@ -1,21 +1,26 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import styles from './question-composer.module.css';
+import { submitQuestionAction } from '@/features/solve/actions';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB before compression (just a safe limit for the browser)
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit for client upload
 
 interface QuestionComposerProps {
   onSubmit?: (text: string, image: File | null, subject: string | null) => void;
 }
 
 export function QuestionComposer({ onSubmit }: QuestionComposerProps) {
+  const router = useRouter();
   const [text, setText] = useState('');
   const [image, setImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState('Processing...');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,12 +37,10 @@ export function QuestionComposer({ onSubmit }: QuestionComposerProps) {
       return;
     }
     if (file.size > MAX_FILE_SIZE) {
-      setErrorMsg('File is too large to process locally.');
+      setErrorMsg('File is too large. Max allowed size is 5MB.');
       return;
     }
     
-    // In a full implementation, we would compress the image here (max 1600px, < 250KB).
-    // For the interface layout, we accept the file and create a preview.
     setImage(file);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(URL.createObjectURL(file));
@@ -77,17 +80,40 @@ export function QuestionComposer({ onSubmit }: QuestionComposerProps) {
     }
   }, []);
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!text.trim() && !image) {
-      setErrorMsg('Please type a question or upload an image.');
+      setErrorMsg('Please type a question or upload an image of your handwritten notes.');
       return;
     }
+
     if (onSubmit) {
       onSubmit(text.trim(), image, selectedSubject);
-    } else {
-      console.log('Submitted:', { text, image, selectedSubject });
-      alert('Question submitted (UI mode). Check console for payload.');
+      return;
+    }
+
+    setIsProcessing(true);
+    setErrorMsg(null);
+    setProcessingStatus(image ? 'Reading handwritten notes with Gemini...' : 'Analyzing question...');
+
+    try {
+      const formData = new FormData();
+      if (text.trim()) formData.append('text', text.trim());
+      if (image) formData.append('image', image);
+      if (selectedSubject) formData.append('subject', selectedSubject);
+
+      const result = await submitQuestionAction(formData);
+
+      if (result.ok) {
+        setProcessingStatus('Generating step-by-step solution with DeepSeek...');
+        router.push(`/solve/${result.submissionId}`);
+      } else {
+        setErrorMsg(result.error);
+        setIsProcessing(false);
+      }
+    } catch {
+      setErrorMsg('An unexpected error occurred while processing. Please try again.');
+      setIsProcessing(false);
     }
   };
 
@@ -102,7 +128,6 @@ export function QuestionComposer({ onSubmit }: QuestionComposerProps) {
 
   return (
     <div className={styles.container}>
-      
       <div className={styles.composerShell} onPaste={handlePaste}>
         {/* Text Input Row */}
         <form onSubmit={handleSubmit} className={styles.inputWrapper}>
@@ -112,12 +137,13 @@ export function QuestionComposer({ onSubmit }: QuestionComposerProps) {
             placeholder="Type or upload your question"
             value={text}
             onChange={(e) => setText(e.target.value)}
+            disabled={isProcessing}
           />
           <div className={styles.divider}></div>
           <button 
             type="submit" 
             className={styles.submitBtn} 
-            disabled={!text.trim() && !image}
+            disabled={(!text.trim() && !image) || isProcessing}
             aria-label="Submit Question"
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -131,88 +157,111 @@ export function QuestionComposer({ onSubmit }: QuestionComposerProps) {
           <div className={styles.errorMessage}>{errorMsg}</div>
         )}
 
-        {/* Dropzone */}
-        <div 
-          className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ''} ${image ? styles.dropzoneImagePreview : ''}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => !image && fileInputRef.current?.click()}
-        >
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            style={{ display: 'none' }} 
-            accept="image/jpeg, image/png, image/webp"
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                const file = e.target.files[0];
-                if (file) handleFile(file);
-              }
-            }}
-          />
-
-          {image && previewUrl ? (
-            <>
-              <img src={previewUrl} alt="Question preview" className={styles.previewImage} />
-              <button 
-                className={styles.removeImageBtn} 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setImage(null);
-                  setPreviewUrl(null);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                aria-label="Remove image"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </>
-          ) : (
-            <>
-              <div className={styles.iconWrapper}>
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                  <polyline points="21 15 16 10 5 21"></polyline>
-                  <path d="M12 2v4m0 0v4m0-4h4m-4 0H8" stroke="currentColor" />
-                </svg>
-              </div>
-              <p className={styles.dropzoneText}>
-                Drag Image or <strong>Click Here</strong> to upload
-              </p>
-              <p className={styles.shortcutText}>
-                Command <span className={styles.keyBadge}>⌘</span> + <span className={styles.keyBadge}>V</span> to paste
-              </p>
-            </>
-          )}
-        </div>
-
-        {/* Subjects Row */}
-        <div className={styles.subjectRow}>
-          {subjects.map((sub) => (
-            <button
-              key={sub.id}
-              type="button"
-              className={`${styles.subjectBtn} ${selectedSubject === sub.id ? styles.subjectBtnActive : ''}`}
-              onClick={() => setSelectedSubject(selectedSubject === sub.id ? null : sub.id)}
+        {isProcessing ? (
+          <div className={styles.processingCard}>
+            <div className={styles.spinner}></div>
+            <p className={styles.processingTitle}>AI Tutor is at work</p>
+            <p className={styles.processingSubtitle}>{processingStatus}</p>
+          </div>
+        ) : (
+          <>
+            {/* Dropzone */}
+            <div 
+              className={`${styles.dropzone} ${isDragging ? styles.dropzoneActive : ''} ${image ? styles.dropzoneImagePreview : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => !image && fileInputRef.current?.click()}
             >
-              <div className={styles.subjectIcon}>
-                {sub.icon}
-              </div>
-              <span className={styles.subjectLabel}>{sub.label}</span>
-            </button>
-          ))}
-          <button type="button" className={styles.moreBtn}>
-            MORE &gt;
-          </button>
-        </div>
-        
-        {/* Processing/Result Area Placeholder */}
-        <div id="result-area"></div>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+                accept="image/jpeg, image/png, image/webp"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files.length > 0) {
+                    const file = e.target.files[0];
+                    if (file) handleFile(file);
+                  }
+                }}
+              />
+
+              {image && previewUrl ? (
+                <>
+                  <img src={previewUrl} alt="Question preview" className={styles.previewImage} />
+                  <button 
+                    type="button"
+                    className={styles.removeImageBtn} 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setImage(null);
+                      setPreviewUrl(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    aria-label="Remove image"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className={styles.iconWrapper}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                      <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                      <polyline points="21 15 16 10 5 21"></polyline>
+                      <path d="M12 2v4m0 0v4m0-4h4m-4 0H8" stroke="currentColor" />
+                    </svg>
+                  </div>
+                  <p className={styles.dropzoneText}>
+                    Drag Image or <strong>Click Here</strong> to upload handwritten notes
+                  </p>
+                  <p className={styles.shortcutText}>
+                    Command <span className={styles.keyBadge}>⌘</span> + <span className={styles.keyBadge}>V</span> to paste
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Subjects Row */}
+            <div className={styles.subjectRow}>
+              {subjects.map((sub) => (
+                <button
+                  key={sub.id}
+                  type="button"
+                  className={`${styles.subjectBtn} ${selectedSubject === sub.id ? styles.subjectBtnActive : ''}`}
+                  onClick={() => setSelectedSubject(selectedSubject === sub.id ? null : sub.id)}
+                >
+                  <div className={styles.subjectIcon}>
+                    {sub.icon}
+                  </div>
+                  <span className={styles.subjectLabel}>{sub.label}</span>
+                </button>
+              ))}
+              <button type="button" className={styles.moreBtn}>
+                MORE &gt;
+              </button>
+            </div>
+
+            {/* Prominent Action Button */}
+            <div className={styles.actionRow}>
+              <button
+                type="button"
+                className={styles.processBtn}
+                onClick={() => handleSubmit()}
+                disabled={(!text.trim() && !image) || isProcessing}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                Start Processing
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
