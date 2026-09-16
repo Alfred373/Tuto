@@ -41,11 +41,106 @@ This assessment slice implements the comprehensive Authentication and Identity l
 
 ## 4. The Data Model
 
-TODO: Document database tables used by this assessment (User, StudentProfile, ConsentEvent), column details, nullability, and constraints.
+The schema is defined in Prisma (`prisma/schema.prisma`) targeting PostgreSQL with the `citext` and `pgvector` extensions. It enforces strict relational constraints, atomic writes, and immutable audit logs.
+
+### 4.1 Identity & Access Control
+
+| Model | Field | Type | Attributes / Constraints | Description |
+|---|---|---|---|---|
+| **User** | `id` | `String` | `@id @default(cuid())` | Non-enumerable unique CUID primary key. |
+| | `role` | `UserRole` | `@default(STUDENT)` | Enum: `STUDENT`, `PARENT`, `REVIEWER`, `ADMIN`. |
+| | `phone` | `String?` | `@unique` | E.164 formatted phone number. |
+| | `email` | `String?` | `@unique @db.Citext` | Case-insensitive unique email address. |
+| | `displayName` | `String?` | Nullable | Full name of the student or parent. |
+| | `passwordHash` | `String?` | Nullable | Argon2/bcrypt hash; never plaintext. |
+| | `phoneVerified` | `Boolean` | `@default(false)` | OTP verification state. |
+| | `emailVerified` | `Boolean` | `@default(false)` | Email token confirmation state. |
+| | `emailVerificationToken` | `String?` | Nullable | SHA-256 hash of the 6-digit confirmation code. |
+| | `emailVerificationTokenExpiresAt` | `DateTime?` | Nullable | 15-minute token TTL. |
+| | `passwordResetToken` | `String?` | Nullable | SHA-256 hash of password reset OTP. |
+| | `createdAt`, `updatedAt` | `DateTime` | `@default(now())`, `@updatedAt` | UTC audit timestamps. |
+| **StudentProfile** | `id` | `String` | `@id @default(cuid())` | Primary key. |
+| | `userId` | `String` | `@unique`, FK -> `User` | 1-to-1 relation with `User(id)` on `onDelete: Cascade`. |
+| | `classLevel` | `ClassLevel` | Required | Enum: `JSS1` through `SS3`. |
+| | `targetExam` | `TargetExam` | `@default(NONE)` | Enum: `WAEC`, `NECO`, `JAMB`, `NONE`. |
+| | `isMinorUnder13` | `Boolean` | `@default(false)` | Flag driving the strict parental consent lockout gate. |
+| | `consentGrantedAt` | `DateTime?` | Nullable | Timestamp of verified guardian OTP consent. |
+| | `consentPhone` | `String?` | Nullable | Guardian's phone number, distinct from student's. |
+| **GuardianLink** | `id` | `String` | `@id @default(cuid())` | Primary key. |
+| | `guardianId` | `String` | FK -> `User` (`GuardianUser`) | Parent account (`onDelete: Cascade`). |
+| | `studentId` | `String` | FK -> `User` (`StudentGuardian`) | Student account (`onDelete: Cascade`). |
+| | `linkCode` | `String` | `@unique` | Secure random link invitation code. |
+| | `confirmedAt` | `DateTime?` | Nullable | Timestamp of link confirmation. |
+| **Device** | `id` | `String` | `@id @default(cuid())` | Primary key. |
+| | `userId` | `String` | FK -> `User` | User device relationship (`onDelete: Cascade`). |
+| | `fingerprint` | `String` | Required | Browser/client device fingerprint hash. |
+
+### 4.2 Billing & Subscriptions
+
+| Model | Field | Type | Attributes / Constraints | Description |
+|---|---|---|---|---|
+| **Plan** | `id` | `String` | `@id @default(cuid())` | Primary key. |
+| | `code` | `String` | `@unique` | System slug: `free`, `plus_monthly`, `plus_annual`. |
+| | `tier` | `PlanTier` | Required | Enum: `FREE`, `PLUS`, `ATLAS`. |
+| | `interval` | `BillingInterval?`| Nullable | Enum: `MONTHLY`, `ANNUAL` (null for `FREE`). |
+| | `priceKobo` | `Int` | Required | Whole integer in kobo (e.g. 249,900 kobo = ₦2,499). |
+| | `dailyQuestionCap` | `Int?` | Nullable | 5 for Free, null for Plus (fair use unlimited). |
+| | `monthlyQuestionCap` | `Int?` | Nullable | 60 for Free, null for Plus. |
+| **Subscription** | `id` | `String` | `@id @default(cuid())` | Primary key. |
+| | `userId` | `String` | FK -> `User` | Subscribing user (`onDelete: Cascade`). |
+| | `planId` | `String` | FK -> `Plan` | Associated plan row. |
+| | `status` | `SubscriptionStatus` | `@default(ACTIVE)` | Enum: `ACTIVE`, `PAST_DUE`, `CANCELLED`, `EXPIRED`. |
+| | `currentPeriodStart` | `DateTime` | Required | Period start, strictly synchronized with payment `paidAt`. |
+| | `currentPeriodEnd` | `DateTime` | Required | Period end (+1 month or +1 year from `paidAt`). |
+| | `flutterwaveSubCode` | `String?` | Indexed | Provider recurring subscription reference. |
+| **Payment** | `id` | `String` | `@id @default(cuid())` | Primary key. |
+| | `subscriptionId` | `String` | FK -> `Subscription` | Linked subscription (`onDelete: Cascade`). |
+| | `amountKobo` | `Int` | Required | Whole integer in kobo. |
+| | `feeKobo` | `Int?` | Nullable | Provider transaction processing fee in kobo. |
+| | `flutterwaveRef` | `String` | `@unique` | Transaction reference; serves as idempotency key. |
+| | `channel` | `String?` | Nullable | Payment channel: `card`, `bank_transfer`, `ussd`. |
+| | `paidAt` | `DateTime?` | Nullable | Provider timestamp when funds were charged. |
+| **PaymentLog** | `id` | `String` | `@id @default(cuid())` | Primary key. |
+| | `source` | `PaymentLogSource` | Required | Enum: `WEBHOOK`, `REDIRECT_SYNC`, `API_VERIFY`. |
+| | `event` | `String` | Required | Provider event identifier (e.g. `charge.completed`). |
+| | `flutterwaveRef` | `String?` | Indexed | Provider reference for lookup. |
+| | `txRef` | `String?` | Indexed | Internal transaction tracking reference. |
+| | `userId` | `String?` | Indexed | Associated user ID. |
+| | `verified` | `Boolean` | `@default(false)` | Cryptographic verification / API check outcome. |
+| | `payload` | `Json` | Required | Full raw provider payload for forensic auditing. |
+
+---
 
 ## 5. The Concepts
 
-TODO: Core engineering concepts required for this assessment slice with explanations and tradeoffs.
+### 1. Server-Authoritative Identity & Web Crypto Sessions
+* **Stateless HMAC-SHA256 Cookies:** Rather than storing sessions in a database table or Redis cache that incurs network roundtrips on throttled 3G connections, Tuto uses signed HTTP-only cookies (`tuto_session`) with a 90-day max age.
+* **Platform Primitives:** Signed and verified using platform `crypto.subtle` (Web Crypto API) rather than third-party dependencies.
+* **Zero Client Trust:** The client never dictates its own user ID, class level, or plan tier. Every route and server action fetches or verifies session credentials server-side from the verified cookie.
+
+### 2. Child Protection by Architecture (NDPR & COPPA Compliance)
+* **Default-Locked State:** When a student enters a date of birth indicating they are under 13 years old (`isMinorUnder13`), the account is created locked.
+* **Hard Middleware & Route Gating:** Locked minors cannot access the `/solve`, `/quiz`, or `/dashboard` surfaces and are redirected to `/consent`.
+* **Out-of-Band Guardian Consent:** Consent requires an OTP sent to a guardian’s verified phone number that is distinct from the student’s phone number. The consent event is stored with an immutable timestamp and the consenting number as legal proof.
+
+### 3. Dual-Layer Resilient Payment Verification & Idempotency
+* **The Webhook Delivery Problem:** In Nigerian networks and local/staging environments, webhooks can be dropped, delayed, or fail to hit local development ports without tunnels.
+* **Dual-Path Architecture:** Tuto implements two synchronized verification layers:
+  1. **Asynchronous Webhooks (`/api/webhooks/flutterwave`):** Cryptographically checks Flutterwave's `verif-hash` header against `FLW_SECRET_HASH` and validates payload schemas with Zod.
+  2. **Synchronous Redirect Fallback (`syncPaymentFromRedirect` on `/dashboard?checkout=success`):** Directly queries Flutterwave's `/transactions/:id/verify` REST endpoint using secret key authentication to verify payment immediately when the user returns.
+* **Atomic Idempotency:** Both paths execute identical business logic wrapped in `db.$transaction` gated by `Payment.flutterwaveRef`. If a transaction has already been recorded, subsequent events exit safely without double-crediting or extending periods twice.
+
+### 4. Financial Representation Rules (Integer Kobo)
+* Floating-point numbers (`0.1 + 0.2 = 0.30000000000000004`) lead to rounding errors, reconciliations failures, and regulatory non-compliance.
+* Every monetary value across the database, business logic, APIs, and logs is stored as an integer number of **kobo** (`₦2,499 = 249900 kobo`). Conversion to naira is purely a presentation-layer concern.
+
+### 5. Multi-Payment Option Flexibility
+* Many Nigerian students and parents lack international-enabled cards or prefer direct virtual account transfers and USSD banking codes over entering card PANs.
+* Checkout requests explicitly declare `payment_options: 'card,banktransfer,ussd,account,qr'` on Flutterwave's hosted gateway. Card details never touch Tuto servers (PCI-DSS compliance).
+
+### 6. Audit-Grade Payment Logging (`PaymentLog`)
+* The `PaymentLog` table serves as the single source of truth for all payment activities. Every webhook receipt, invalid signature attempt, and redirect verification is recorded with its verification status, client IP address, and raw payload.
+
 
 ## 6. What Went Wrong
 
