@@ -1,0 +1,121 @@
+.bannerContainer {
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  padding: var(--spacing-20);
+  border-radius: var(--shape-corner-large);
+  border: 1px solid var(--color-error-container);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  width: 100%;
+}
+
+.bannerHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.bannerTitle {
+  font: var(--typography-title-medium);
+  color: var(--color-error);
+  margin: 0;
+}
+
+.bannerText {
+  font: var(--typography-body-medium);
+  color: var(--color-on-surface-variant);
+  margin: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.label {
+  font: var(--typography-label-medium);
+  color: var(--color-on-surface);
+}
+
+.input {
+  padding: var(--spacing-12);
+  border-radius: var(--shape-corner-medium);
+  border: 1px solid var(--color-outline);
+  background-color: var(--color-surface-container-highest);
+  color: var(--color-on-surface);
+  font: var(--typography-body-large);
+  min-height: 48px;
+  width: 100%;
+  box-sizing: border-box;
+  font-family: monospace;
+}
+
+.input:focus {
+  outline: 2px solid var(--color-primary);
+  border-color: transparent;
+}
+
+.buttonRow {
+  display: flex;
+  gap: var(--spacing-12);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.primaryButton {
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  border-radius: var(--shape-corner-full);
+  padding: 0 var(--spacing-24);
+  font: var(--typography-label-large);
+  min-height: 48px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  background-color: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-outline);
+  border-radius: var(--shape-corner-full);
+  padding: 0 var(--spacing-24);
+  font: var(--typography-label-large);
+  min-height: 48px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.secondaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alertError {
+  color: var(--color-error);
+  font: var(--typography-body-small);
+  margin: 0;
+}
+
+.alertSuccess {
+  color: var(--color-success);
+  font: var(--typography-body-small);
+  margin: 0;
+}

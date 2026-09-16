@@ -1,0 +1,662 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector"), citext]
+}
+
+// ============ Identity ============
+
+enum UserRole {
+  STUDENT
+  PARENT
+  REVIEWER
+  ADMIN
+}
+
+enum ClassLevel {
+  JSS1
+  JSS2
+  JSS3
+  SS1
+  SS2
+  SS3
+}
+
+enum TargetExam {
+  WAEC
+  NECO
+  JAMB
+  NONE
+}
+
+model User {
+  id                              String    @id @default(cuid())
+  role                            UserRole  @default(STUDENT)
+  phone                           String?   @unique
+  email                           String?   @unique @db.Citext
+  displayName                     String?
+  passwordHash                    String?
+  phoneVerified                   Boolean   @default(false)
+  emailVerified                   Boolean   @default(false)
+  emailVerificationToken          String?
+  emailVerificationTokenExpiresAt DateTime?
+  emailVerificationAttempts       Int       @default(0)
+  passwordResetToken              String?
+  passwordResetTokenExpiresAt     DateTime?
+  createdAt                       DateTime  @default(now())
+  updatedAt                       DateTime  @updatedAt
+  lastSeenAt                      DateTime?
+  deletedAt                       DateTime?
+
+  studentProfile   StudentProfile?
+  subscriptions    Subscription[]
+  guardianOf       GuardianLink[]       @relation("GuardianUser")
+  guardians        GuardianLink[]       @relation("StudentGuardian")
+  usageCounters    UsageCounter[]
+  submissions      QuestionSubmission[]
+  quizAttempts     QuizAttempt[]
+  atlasViews       AtlasView[]
+  integritySignals IntegritySignal[]
+  flags            ContentFlag[]
+  reviewsDone      ContentReview[]      @relation("Reviewer")
+  devices          Device[]
+
+  @@index([phone])
+  @@index([lastSeenAt])
+}
+
+model StudentProfile {
+  id                   String     @id @default(cuid())
+  userId               String     @unique
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classLevel           ClassLevel
+  targetExam           TargetExam @default(NONE)
+  schoolName           String?
+  stateCode            String?
+  dateOfBirth          DateTime?
+  isMinorUnder13       Boolean    @default(false)
+  consentGrantedAt     DateTime?
+  consentPhone         String?
+  consentRevokedAt     DateTime?
+  honourCodeAcceptedAt DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  @@index([classLevel, targetExam])
+}
+
+// Links a paying parent to one or more student accounts.
+// Both sides are now real relations. v0.1 held studentId as a bare string.
+model GuardianLink {
+  id          String    @id @default(cuid())
+  guardianId  String
+  guardian    User      @relation("GuardianUser", fields: [guardianId], references: [id], onDelete: Cascade)
+  studentId   String
+  student     User      @relation("StudentGuardian", fields: [studentId], references: [id], onDelete: Cascade)
+  linkCode    String    @unique
+  confirmedAt DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([guardianId, studentId])
+  @@index([studentId])
+  @@index([linkCode])
+}
+
+model Device {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fingerprint String
+  userAgent   String?
+  lastSeenAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([userId, fingerprint])
+  @@index([fingerprint])
+}
+
+// ============ Billing ============
+
+enum PlanTier {
+  FREE
+  PLUS
+  ATLAS
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+// interval is nullable so FREE does not need a fake MONTHLY row.
+// Uniqueness moved to an explicit code, since a composite unique with a
+// nullable column does not constrain in Postgres.
+model Plan {
+  id                    String           @id @default(cuid())
+  code                  String           @unique // free, plus_monthly, plus_annual
+  tier                  PlanTier
+  interval              BillingInterval?
+  priceKobo             Int // kobo, never a float
+  currency              String           @default("NGN")
+  dailyQuestionCap      Int? // null means fair-use unlimited
+  monthlyQuestionCap    Int?
+  monthlyAtlasViews     Int?
+  allowsAtlasGeneration Boolean          @default(false)
+  allowsOffline         Boolean          @default(false)
+  allowsParentSummary   Boolean          @default(false)
+  isActive              Boolean          @default(true)
+  createdAt             DateTime         @default(now())
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  status               SubscriptionStatus @default(ACTIVE)
+  payerUserId          String? // the parent, when different from the student
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  cancelledAt          DateTime?
+  paystackCustomerCode String?
+  paystackSubCode      String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  payments Payment[]
+
+  @@index([userId, status])
+  @@index([currentPeriodEnd, status])
+  @@index([paystackSubCode])
+}
+
+model Payment {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  amountKobo     Int
+  feeKobo        Int?
+  currency       String       @default("NGN")
+  status         String
+  channel        String? // card, bank_transfer, ussd
+  paystackRef    String       @unique
+  paidAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([subscriptionId, createdAt])
+}
+
+// Usage metering. One row per user per UTC day, incremented atomically.
+// userId is now a real relation. This table gates revenue.
+model UsageCounter {
+  id                  String   @id @default(cuid())
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  day                 DateTime @db.Date
+  questionsUsed       Int      @default(0)
+  quizzesUsed         Int      @default(0)
+  atlasViewsUsed      Int      @default(0)
+  atlasGensUsed       Int      @default(0)
+  inferenceCostMicros Int      @default(0) // USD micros. Backs the R3 alert.
+  updatedAt           DateTime @updatedAt
+
+  @@unique([userId, day])
+  @@index([day])
+}
+
+// ============ Syllabus and past questions ============
+
+enum Subject {
+  MATHEMATICS
+  PHYSICS
+  CHEMISTRY
+  BIOLOGY
+  ENGLISH
+  HISTORY
+}
+
+enum ExamBoard {
+  WAEC
+  NECO
+  JAMB
+}
+
+model SyllabusTopic {
+  id            String          @id @default(cuid())
+  subject       Subject
+  board         ExamBoard
+  code          String
+  title         String
+  slug          String          @unique
+  parentId      String?
+  parent        SyllabusTopic?  @relation("TopicTree", fields: [parentId], references: [id])
+  children      SyllabusTopic[] @relation("TopicTree")
+  classLevels   ClassLevel[]
+  frequencyRank Int?
+  createdAt     DateTime        @default(now())
+
+  pastQuestions PastQuestion[]
+  submissions   QuestionSubmission[]
+  atlasWorlds   AtlasWorld[]
+  quizItems     QuizItem[]
+
+  @@unique([board, subject, code])
+  @@index([subject, board, frequencyRank])
+}
+
+model PastQuestion {
+  id             String                      @id @default(cuid())
+  board          ExamBoard
+  subject        Subject
+  year           Int
+  paper          String?
+  questionNumber String?
+  bodyText       String
+  bodyLatex      String?
+  optionsJson    Json?
+  correctOption  String?
+  markingScheme  String?
+  topicId        String?
+  topic          SyllabusTopic?              @relation(fields: [topicId], references: [id])
+  embedding      Unsupported("vector(768)")?
+  sourceLicence  String? // provenance, required by the Phase 0 gate
+  sourceNote     String?
+  createdAt      DateTime                    @default(now())
+
+  // Back-relation added. Its absence is why v0.1 did not compile.
+  submissions QuestionSubmission[]
+
+  @@index([board, subject, year])
+  @@index([topicId])
+}
+
+// ============ Solving ============
+
+enum SubmissionStatus {
+  UPLOADED
+  EXTRACTING
+  AWAITING_CROP
+  AWAITING_CONFIRM
+  SOLVING
+  COMPLETE
+  FAILED
+  DECLINED
+}
+
+enum ConfidenceLevel {
+  HIGH
+  MEDIUM
+  LOW
+  UNRESOLVED
+}
+
+model QuestionSubmission {
+  id                    String                      @id @default(cuid())
+  userId                String
+  user                  User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                SubmissionStatus            @default(UPLOADED)
+  inputMethod           String // image, typed
+  imageKey              String? // R2 key, nulled after 24h
+  imagePurgedAt         DateTime?
+  transcribedText       String?
+  transcribedLatex      String?
+  studentEditedText     Boolean                     @default(false)
+  subject               Subject?
+  topicId               String?
+  topic                 SyllabusTopic?              @relation(fields: [topicId], references: [id])
+  matchedPastQuestionId String?
+  matchedPastQuestion   PastQuestion?               @relation(fields: [matchedPastQuestionId], references: [id])
+  matchScore            Float?
+  embedding             Unsupported("vector(768)")?
+  detectedCount         Int                         @default(1)
+  extractionConfidence  Float?
+  attemptedAnswer       String? // the student's own answer, before the reveal
+  revealedAt            DateTime?
+  declineReason         String?
+  createdAt             DateTime                    @default(now())
+  completedAt           DateTime?
+
+  solution   Solution?
+  quiz       Quiz?
+  flags      ContentFlag[]
+  modelCalls ModelCall[]
+
+  @@index([userId, createdAt])
+  @@index([topicId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Solution {
+  id                 String             @id @default(cuid())
+  submissionId       String             @unique
+  submission         QuestionSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  finalAnswer        String?
+  finalAnswerLatex   String?
+  confidence         ConfidenceLevel    @default(HIGH)
+  verified           Boolean            @default(false)
+  verificationMethod String? // symbolic, second_model, none, service_unavailable
+  explanation        String? // step 3
+  followUpPrompt     String? // step 4
+  followUpAnswer     String?
+  // Replaces the bare servedFromCache boolean, so a bad cache entry can be
+  // traced to every student it reached.
+  cacheId            String?
+  cache              SolutionCache?     @relation(fields: [cacheId], references: [id], onDelete: SetNull)
+  createdAt          DateTime           @default(now())
+
+  steps SolutionStep[]
+
+  @@index([confidence, verified])
+  @@index([cacheId])
+}
+
+model SolutionStep {
+  id           String   @id @default(cuid())
+  solutionId   String
+  solution     Solution @relation(fields: [solutionId], references: [id], onDelete: Cascade)
+  ordinal      Int
+  statement    String
+  workingLatex String?
+  markNote     String? // what the marking scheme awards here
+  createdAt    DateTime @default(now())
+
+  @@unique([solutionId, ordinal])
+}
+
+// ============ Quizzes ============
+
+model Quiz {
+  id           String              @id @default(cuid())
+  submissionId String?             @unique
+  submission   QuestionSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  topicId      String?
+  createdAt    DateTime            @default(now())
+
+  items    QuizItem[]
+  attempts QuizAttempt[]
+}
+
+model QuizItem {
+  id                   String         @id @default(cuid())
+  quizId               String
+  quiz                 Quiz           @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  topicId              String?
+  topic                SyllabusTopic? @relation(fields: [topicId], references: [id])
+  sourcePastQuestionId String? // null means generated
+  ordinal              Int
+  prompt               String
+  optionsJson          Json
+  correctOption        String
+  rationale            String?
+
+  responses QuizResponse[]
+
+  @@unique([quizId, ordinal])
+  @@index([topicId])
+}
+
+model QuizAttempt {
+  id          String    @id @default(cuid())
+  quizId      String
+  quiz        Quiz      @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  score       Int?
+  total       Int?
+
+  responses QuizResponse[]
+
+  @@index([userId, completedAt])
+  @@index([quizId])
+}
+
+model QuizResponse {
+  id             String      @id @default(cuid())
+  attemptId      String
+  attempt        QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  itemId         String
+  item           QuizItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  selectedOption String?
+  isCorrect      Boolean
+  answeredAt     DateTime    @default(now())
+
+  @@unique([attemptId, itemId])
+}
+
+// ============ Integrity ============
+// New. v0.1 specified cheating-signal logging with no table to log to.
+
+enum IntegritySignalType {
+  EXAM_WINDOW_BURST
+  RAPID_SEQUENTIAL
+  NON_ACADEMIC_UPLOAD
+  MULTI_ACCOUNT_DEVICE
+}
+
+model IntegritySignal {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  signalType  IntegritySignalType
+  examWindow  Boolean             @default(false)
+  boardInPlay ExamBoard?
+  itemCount   Int?
+  windowStart DateTime?
+  windowEnd   DateTime?
+  notedAt     DateTime            @default(now())
+
+  @@index([userId, notedAt])
+  @@index([signalType, notedAt])
+}
+
+// ============ Atlas (Appendix A, not built in v1) ============
+
+enum AtlasLayout {
+  MAP
+  TIMELINE
+  CUTAWAY
+  PROCESS
+}
+
+enum PublishState {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  WITHDRAWN
+}
+
+model AtlasWorld {
+  id                   String        @id @default(cuid())
+  topicId              String
+  topic                SyllabusTopic @relation(fields: [topicId], references: [id])
+  slug                 String        @unique
+  title                String
+  layout               AtlasLayout
+  sceneSvgKey          String?
+  payloadBytes         Int?
+  state                PublishState  @default(DRAFT)
+  sensitiveTopic       Boolean       @default(false)
+  generationCostMicros Int?
+  generatedAt          DateTime?
+  publishedAt          DateTime?
+  version              Int           @default(1)
+
+  nodes      AtlasNode[]
+  views      AtlasView[]
+  modelCalls ModelCall[]
+  flags      ContentFlag[]
+  reviews    ContentReview[]
+
+  @@unique([topicId, version])
+  @@index([state, publishedAt])
+}
+
+model AtlasNode {
+  id         String      @id @default(cuid())
+  worldId    String
+  world      AtlasWorld  @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  parentId   String?
+  parent     AtlasNode?  @relation("NodeTree", fields: [parentId], references: [id])
+  children   AtlasNode[] @relation("NodeTree")
+  depth      Int         @default(0) // enforced max 1
+  label      String
+  bodyText   String?
+  positionX  Float?
+  positionY  Float?
+  timelineAt DateTime?
+
+  sources AtlasNodeSource[]
+
+  @@index([worldId, depth])
+}
+
+model AtlasSource {
+  id          String   @id @default(cuid())
+  title       String
+  sourceUrl   String
+  licence     String // CC BY-SA 4.0, public domain, etc
+  attribution String
+  assetKey    String?
+  createdAt   DateTime @default(now())
+
+  nodes AtlasNodeSource[]
+
+  @@index([licence])
+}
+
+model AtlasNodeSource {
+  nodeId   String
+  node     AtlasNode   @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  sourceId String
+  source   AtlasSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@id([nodeId, sourceId])
+}
+
+model AtlasView {
+  id           String     @id @default(cuid())
+  worldId      String
+  world        AtlasWorld @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nodesOpened  Int        @default(0)
+  dwellSeconds Int        @default(0)
+  viewedAt     DateTime   @default(now())
+
+  @@index([userId, viewedAt])
+  @@index([worldId, viewedAt])
+}
+
+// ============ Trust and review ============
+
+enum FlagReason {
+  WRONG_ANSWER
+  WRONG_METHOD
+  UNREADABLE
+  INAPPROPRIATE
+  SOURCE_PROBLEM
+  OTHER
+}
+
+enum FlagStatus {
+  OPEN
+  TRIAGED
+  RESOLVED
+  REJECTED
+}
+
+model ContentFlag {
+  id           String              @id @default(cuid())
+  userId       String
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  submissionId String?
+  submission   QuestionSubmission? @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  worldId      String?
+  world        AtlasWorld?         @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  reason       FlagReason
+  note         String?
+  status       FlagStatus          @default(OPEN)
+  createdAt    DateTime            @default(now())
+  resolvedAt   DateTime?
+
+  review ContentReview?
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+model ContentReview {
+  id         String       @id @default(cuid())
+  flagId     String?      @unique
+  flag       ContentFlag? @relation(fields: [flagId], references: [id])
+  worldId    String?
+  world      AtlasWorld?  @relation(fields: [worldId], references: [id])
+  reviewerId String
+  reviewer   User         @relation("Reviewer", fields: [reviewerId], references: [id])
+  verdict    String
+  correction String?
+  reviewedAt DateTime     @default(now())
+
+  @@index([reviewerId, reviewedAt])
+}
+
+// Cost and latency observability. Written on every model call.
+// worldId is now a real relation.
+model ModelCall {
+  id           String              @id @default(cuid())
+  submissionId String?
+  submission   QuestionSubmission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+  worldId      String?
+  world        AtlasWorld?         @relation(fields: [worldId], references: [id], onDelete: SetNull)
+  stage        String // extract, solve, verify, enrich, atlas_plan, atlas_nodes
+  provider     String
+  model        String
+  inputTokens  Int?
+  outputTokens Int?
+  costMicros   Int
+  latencyMs    Int
+  succeeded    Boolean             @default(true)
+  errorCode    String?
+  createdAt    DateTime            @default(now())
+
+  @@index([stage, createdAt])
+  @@index([model, createdAt])
+}
+
+// Semantic cache for repeated questions. The largest cost lever.
+model SolutionCache {
+  id             String                      @id @default(cuid())
+  normalisedHash String                      @unique
+  embedding      Unsupported("vector(768)")?
+  subject        Subject
+  topicId        String?
+  payload        Json // the full rendered sequence
+  hitCount       Int                         @default(0)
+  lastHitAt      DateTime?
+  invalidatedAt  DateTime?
+  createdAt      DateTime                    @default(now())
+
+  solutions Solution[]
+
+  @@index([subject, topicId])
+  @@index([hitCount])
+}

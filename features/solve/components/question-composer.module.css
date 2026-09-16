@@ -1,0 +1,238 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  gap: var(--spacing-24);
+  background-color: var(--color-background);
+}
+
+.composerShell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-24);
+  width: 100%;
+}
+
+.inputWrapper {
+  display: flex;
+  align-items: center;
+  background-color: #F1F4FA; /* Approximating the screenshot pill background */
+  border-radius: 9999px;
+  padding: 8px 8px 8px 24px;
+  border: 1px solid #E1E6F4;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.textInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font: var(--typography-body-large);
+  color: #333333;
+  outline: none;
+}
+
+.textInput::placeholder {
+  color: #7B85A1;
+}
+
+.divider {
+  width: 1px;
+  height: 24px;
+  background-color: #D3DBF0;
+  margin: 0 12px;
+}
+
+.submitBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #FFFFFF;
+  border: none;
+  cursor: pointer;
+  color: #8C99B8;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+.submitBtn:hover:not(:disabled) {
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.submitBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  border: 2px dashed #B3BDD8;
+  border-radius: 24px;
+  background-color: #FFFFFF;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.dropzoneActive {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-container);
+}
+
+.dropzoneImagePreview {
+  padding: 12px;
+}
+
+.previewImage {
+  max-width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.removeImageBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.removeImageBtn:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.iconWrapper {
+  color: #B3BDD8;
+  margin-bottom: 16px;
+}
+
+.dropzoneText {
+  font: var(--typography-body-large);
+  color: #8C99B8;
+  margin: 0 0 8px 0;
+}
+
+.dropzoneText strong {
+  color: #333333;
+  font-weight: 500;
+}
+
+.shortcutText {
+  font: var(--typography-body-small);
+  color: #8C99B8;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.keyBadge {
+  background-color: #F1F4FA;
+  border: 1px solid #D3DBF0;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: monospace;
+  font-size: 12px;
+}
+
+.subjectRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.subjectBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #A0ABC0;
+  transition: all 0.2s ease;
+}
+
+.subjectBtn:hover, .subjectBtnActive {
+  color: var(--color-primary);
+}
+
+.subjectIcon {
+  width: 48px;
+  height: 48px;
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.subjectBtn:hover .subjectIcon {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+
+.subjectBtnActive .subjectIcon {
+  border-color: var(--color-primary);
+}
+
+.subjectLabel {
+  font: var(--typography-label-small);
+  font-weight: 500;
+}
+
+.moreBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #F1F4FA;
+  color: #7B85A1;
+  border: none;
+  border-radius: 9999px;
+  padding: 8px 16px;
+  font: var(--typography-label-medium);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.moreBtn:hover {
+  background-color: #E1E6F4;
+}
+
+.errorMessage {
+  color: var(--color-error);
+  font: var(--typography-body-small);
+  background-color: var(--color-error-container);
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: center;
+}

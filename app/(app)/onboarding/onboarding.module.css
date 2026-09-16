@@ -1,0 +1,138 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  padding: var(--spacing-24) var(--spacing-16);
+  box-sizing: border-box;
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  border-radius: var(--shape-corner-large);
+  border: 1px solid var(--color-outline);
+  padding: var(--spacing-32);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-24);
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  text-align: center;
+}
+
+.title {
+  font: var(--typography-headline-small);
+  font-family: var(--typography-family-display);
+  color: var(--color-on-background);
+  margin: 0;
+}
+
+.subtext {
+  font: var(--typography-body-medium);
+  color: var(--color-on-surface-variant);
+  margin: 0;
+}
+
+.stepIndicator {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-8);
+}
+
+.stepDot {
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+  border-radius: var(--shape-corner-full);
+  background-color: var(--color-outline-variant);
+}
+
+.activeDot {
+  background-color: var(--color-primary);
+  width: var(--spacing-24);
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+.label {
+  font: var(--typography-label-medium);
+  color: var(--color-on-surface);
+}
+
+.select {
+  min-height: var(--spacing-48);
+  padding: 0 var(--spacing-16);
+  border-radius: var(--shape-corner-small);
+  border: 1px solid var(--color-outline);
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font: var(--typography-body-medium);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.subjectGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-12);
+}
+
+.subjectPill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--spacing-48);
+  padding: var(--spacing-8) var(--spacing-16);
+  border-radius: var(--shape-corner-small);
+  border: 1px solid var(--color-outline);
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+  font: var(--typography-label-large);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--motion-duration-short-3) var(--motion-easing-standard);
+}
+
+.selectedPill {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-container);
+  color: var(--color-on-primary-container);
+}
+
+.primaryButton {
+  min-height: var(--spacing-48);
+  padding: var(--spacing-12) var(--spacing-24);
+  border-radius: var(--shape-corner-full);
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  border: none;
+  font: var(--typography-label-large);
+  cursor: pointer;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primaryButton:hover {
+  opacity: 0.92;
+}
+
+.primaryButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}

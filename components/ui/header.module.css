@@ -1,0 +1,138 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-16) var(--spacing-72);
+  background-color: transparent;
+  box-sizing: border-box;
+  width: 100%;
+  flex-shrink: 0;
+  gap: var(--spacing-16);
+}
+
+.brandLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  text-decoration: none;
+  min-height: var(--spacing-48);
+  padding: var(--spacing-8) var(--spacing-16);
+  border-radius: var(--shape-corner-medium);
+  box-sizing: border-box;
+  transition: outline-color var(--motion-duration-short-3) var(--motion-easing-standard);
+}
+
+.brandLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.brandLink:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-16);
+}
+
+.navLink {
+  position: relative;
+  font: var(--typography-label-large);
+  color: var(--color-on-surface-variant);
+  text-decoration: none;
+  min-height: var(--spacing-48);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-8) var(--spacing-20);
+  border-radius: var(--shape-corner-small);
+  box-sizing: border-box;
+  transition: color 1s var(--motion-easing-standard);
+}
+
+.navLink::after {
+  content: '';
+  position: absolute;
+  bottom: var(--spacing-4);
+  left: var(--spacing-20);
+  right: var(--spacing-20);
+  height: 2px;
+  background-color: var(--color-primary);
+  border-radius: var(--shape-corner-full);
+  transform: scaleX(0);
+  transform-origin: center;
+  opacity: 0;
+  transition: transform 1s var(--motion-easing-emphasized),
+              opacity 1s var(--motion-easing-standard);
+}
+
+.navLink:hover {
+  color: var(--color-on-surface);
+}
+
+.navLink:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  color: var(--color-primary);
+  padding: var(--spacing-8) var(--spacing-20);
+}
+
+.navLink:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.navLink:hover::after,
+.navLink:focus::after,
+.navLink:focus-visible::after,
+.navLinkActive::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+.navLinkActive {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .navLink,
+  .navLink::after {
+    transition: none;
+  }
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--spacing-48);
+  min-width: var(--spacing-48);
+  padding: var(--spacing-8) var(--spacing-24);
+  border-radius: var(--shape-corner-full);
+  background-color: var(--color-primary);
+  color: var(--color-on-primary);
+  font: var(--typography-label-large);
+  text-decoration: none;
+  box-sizing: border-box;
+  box-shadow: var(--elevation-level-0);
+  transition: none;
+}
+
+.ctaButton:hover {
+  filter: brightness(1.15);
+  opacity: 0.92;
+  box-shadow: var(--elevation-level-2);
+  transition: none;
+}
+
+.ctaButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.ctaButton:focus:not(:focus-visible) {
+  outline: none;
+}

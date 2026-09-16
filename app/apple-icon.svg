@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="tuto-apple-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#DD1111" />
+      <stop offset="100%" stop-color="#B80000" />
+    </linearGradient>
+  </defs>
+  <!-- Apple Touch Icon Squircle -->
+  <rect width="512" height="512" rx="120" fill="url(#tuto-apple-bg)" />
+  
+  <!-- Academic Chevron / Cap Peak -->
+  <polygon points="256,96 364,146 256,178 148,146" fill="#FFFFFF" opacity="0.95" />
+  
+  <!-- Monogram 'T' Crossbar -->
+  <rect x="116" y="184" width="280" height="54" rx="27" fill="#FFFFFF" />
+  
+  <!-- Monogram 'T' Vertical Pillar -->
+  <rect x="229" y="210" width="54" height="206" rx="27" fill="#FFFFFF" />
+
+  <!-- 5-Step Guided Learning Indicator Dots -->
+  <circle cx="160" cy="392" r="10" fill="#FFFFFF" opacity="0.4" />
+  <circle cx="208" cy="392" r="10" fill="#FFFFFF" opacity="0.6" />
+  <circle cx="256" cy="392" r="10" fill="#FFFFFF" opacity="1.0" />
+  <circle cx="304" cy="392" r="10" fill="#FFFFFF" opacity="0.6" />
+  <circle cx="352" cy="392" r="10" fill="#FFFFFF" opacity="0.4" />
+</svg>
